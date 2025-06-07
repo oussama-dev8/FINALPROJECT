@@ -52,6 +52,8 @@ A comprehensive Django REST API backend for the Darsy e-learning platform with r
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
+   AGORA_APP_ID=your_app_id_here
+   AGORA_APP_CERTIFICATE=your_app_certificate_here
    ```
 
 5. **Database setup**

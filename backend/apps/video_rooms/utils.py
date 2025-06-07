@@ -29,8 +29,9 @@ def generate_agora_token(app_id, app_certificate, channel_name, uid, token_type=
         token = RtmTokenBuilder.buildToken(
             app_id, 
             app_certificate, 
-            str(uid), 
-            expiration_time_in_seconds
+            str(uid),  # RTM requires string user ID
+            role=1,  # Use role=1 for RTM user role
+            privilegeExpiredTs=expiration_time_in_seconds  # Add expiration time
         )
     else:
         raise ValueError("Invalid token type. Use 'rtc' or 'rtm'")
