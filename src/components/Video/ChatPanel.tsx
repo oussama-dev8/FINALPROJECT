@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, X, Paperclip, Smile, MoreVertical } from 'lucide-react';
+import { Send, X, Paperclip, Smile } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { mockChatMessages } from '../../data/mockData';
-import { ChatMessage } from '../../types';
+import { useRTM } from '../../contexts/AgoraRTMContext';
 
 interface ChatPanelProps {
   roomId: string;
@@ -11,7 +10,7 @@ interface ChatPanelProps {
 
 export function ChatPanel({ roomId, onClose }: ChatPanelProps) {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<ChatMessage[]>(mockChatMessages);
+  const { messages, sendMessage } = useRTM();
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -23,21 +22,11 @@ export function ChatPanel({ roomId, onClose }: ChatPanelProps) {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user) return;
 
-    const message: ChatMessage = {
-      id: Date.now().toString(),
-      roomId,
-      userId: user.id,
-      userName: `${user.firstName} ${user.lastName}`,
-      message: newMessage.trim(),
-      timestamp: new Date().toISOString(),
-      type: 'text'
-    };
-
-    setMessages([...messages, message]);
+    await sendMessage(newMessage.trim());
     setNewMessage('');
   };
 
@@ -63,24 +52,24 @@ export function ChatPanel({ roomId, onClose }: ChatPanelProps) {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
+        {messages.map((message, index) => (
           <div 
-            key={message.id} 
-            className={`flex ${message.userId === user?.id ? 'justify-end' : 'justify-start'}`}
+            key={`${message.userId}-${message.timestamp}-${index}`}
+            className={`flex ${message.userId === user?.id.toString() ? 'justify-end' : 'justify-start'}`}
           >
             <div className={`max-w-xs lg:max-w-md ${
-              message.userId === user?.id 
+              message.userId === user?.id.toString()
                 ? 'bg-primary-600 text-white' 
                 : 'bg-gray-100 text-gray-900'
             } rounded-lg px-3 py-2`}>
-              {message.userId !== user?.id && (
+              {message.userId !== user?.id.toString() && (
                 <div className="text-xs font-medium mb-1 opacity-75">
                   {message.userName}
                 </div>
               )}
-              <div className="text-sm">{message.message}</div>
+              <div className="text-sm">{message.text}</div>
               <div className={`text-xs mt-1 ${
-                message.userId === user?.id ? 'text-primary-200' : 'text-gray-500'
+                message.userId === user?.id.toString() ? 'text-primary-200' : 'text-gray-500'
               }`}>
                 {formatTime(message.timestamp)}
               </div>
@@ -92,7 +81,7 @@ export function ChatPanel({ roomId, onClose }: ChatPanelProps) {
 
       {/* Message Input */}
       <div className="border-t border-gray-200 p-4">
-        <form onSubmit={sendMessage} className="flex items-center space-x-2">
+        <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
           <div className="flex-1 relative">
             <input
               type="text"

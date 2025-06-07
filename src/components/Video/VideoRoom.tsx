@@ -15,6 +15,7 @@ import {
   Minimize
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRTM } from '../../contexts/AgoraRTMContext';
 import { ChatPanel } from './ChatPanel';
 
 interface VideoRoomProps {
@@ -25,6 +26,7 @@ interface VideoRoomProps {
 
 export function VideoRoom({ roomId, courseTitle, lessonTitle }: VideoRoomProps) {
   const { user } = useAuth();
+  const { joinChannel, leaveChannel } = useRTM();
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [isAudioOn, setIsAudioOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -40,14 +42,25 @@ export function VideoRoom({ roomId, courseTitle, lessonTitle }: VideoRoomProps) 
 
   const isHost = user?.userType === 'teacher';
 
+  useEffect(() => {
+    // Join the RTM channel when component mounts
+    joinChannel(roomId);
+
+    // Leave the channel when component unmounts
+    return () => {
+      leaveChannel();
+    };
+  }, [roomId]);
+
   const toggleVideo = () => setIsVideoOn(!isVideoOn);
   const toggleAudio = () => setIsAudioOn(!isAudioOn);
   const toggleScreenShare = () => setIsScreenSharing(!isScreenSharing);
   const toggleHandRaise = () => setIsHandRaised(!isHandRaised);
   const toggleFullscreen = () => setIsFullscreen(!isFullscreen);
 
-  const leaveRoom = () => {
-    // Handle leaving the room
+  const leaveRoom = async () => {
+    // Leave RTM channel before navigating away
+    await leaveChannel();
     window.history.back();
   };
 
