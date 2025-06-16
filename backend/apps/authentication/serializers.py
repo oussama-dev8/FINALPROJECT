@@ -2,6 +2,10 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from .models import User
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
@@ -18,7 +22,17 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs['password'] != attrs['confirm_password']:
-            raise serializers.ValidationError("Passwords don't match")
+            raise serializers.ValidationError({"confirm_password": "Passwords don't match"})
+        
+        # Validate user_type
+        user_type = attrs.get('user_type')
+        if not user_type:
+            raise serializers.ValidationError({"user_type": "User type is required"})
+        
+        if user_type not in [choice[0] for choice in User.USER_TYPE_CHOICES]:
+            raise serializers.ValidationError({"user_type": f"Invalid user type. Must be one of: {', '.join([choice[0] for choice in User.USER_TYPE_CHOICES])}"})
+        
+        logger.info(f"User registration validated with user_type: {user_type}")
         return attrs
 
     def validate_email(self, value):
@@ -27,11 +41,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
+        logger.info(f"Creating user with data: {validated_data}")
         validated_data.pop('confirm_password')
         password = validated_data.pop('password')
         user = User.objects.create_user(**validated_data)
         user.set_password(password)
         user.save()
+        logger.info(f"User created: {user.email} ({user.user_type})")
         return user
 
 class UserLoginSerializer(serializers.Serializer):
@@ -83,7 +99,7 @@ class PasswordChangeSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs['new_password'] != attrs['confirm_password']:
-            raise serializers.ValidationError("New passwords don't match")
+            raise serializers.ValidationError({"confirm_password": "New passwords don't match"})
         return attrs
 
     def validate_old_password(self, value):

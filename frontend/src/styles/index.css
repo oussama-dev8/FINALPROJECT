@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Apply Inter font globally */
+/* Base styles */
+html {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: -ms-autohiding-scrollbar; /* IE 11 */
+  overflow: -moz-scrollbars-none; /* Old Firefox */
+}
+
+/* Hide scrollbar for WebKit/Blink browsers */
+html::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Hide scrollbar for all elements */
+* {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+*::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Custom styles below this line */
+
+/* Prevent layout shifts during form validation */
+.input-error {
+  @apply border-red-300 text-red-900 placeholder-red-300 focus:outline-none focus:ring-red-500 focus:border-red-500;
+}
+
+.input-success {
+  @apply border-green-300 text-green-900 placeholder-green-300 focus:outline-none focus:ring-green-500 focus:border-green-500;
+}
+
+/* Ensure consistent height for error messages */
+.error-message {
+  @apply mt-1 text-sm text-red-600 min-h-[1.25rem];
+}
+
+/* Smooth transitions for input states */
+input, button, textarea, select {
+  @apply transition-colors duration-200 ease-in-out;
+}
+ 

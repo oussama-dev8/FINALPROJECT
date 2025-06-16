@@ -16,6 +16,6 @@ class StudentActivityAdmin(admin.ModelAdmin):
 
 @admin.register(SessionAnalytics)
 class SessionAnalyticsAdmin(admin.ModelAdmin):
-    list_display = ['room', 'total_participants', 'peak_participants', 'session_rating', 'created_at']
+    list_display = ['room_name', 'total_participants', 'peak_participants', 'session_rating', 'created_at']
     list_filter = ['created_at']
-    search_fields = ['room__title']
+    search_fields = ['room_name']

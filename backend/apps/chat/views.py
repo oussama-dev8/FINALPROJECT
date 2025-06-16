@@ -2,32 +2,18 @@ from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.db.models import Count
 from .models import ChatMessage, ChatReaction
 from .serializers import ChatMessageSerializer, ChatMessageCreateSerializer, ChatReactionSerializer
-from apps.video_rooms.models import VideoRoom, RoomParticipant
 
 class ChatMessageListCreateView(generics.ListCreateAPIView):
     serializer_class = ChatMessageSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        room_id = self.kwargs['room_id']
-        room = get_object_or_404(VideoRoom, id=room_id)
-        
-        # Check if user can access the room
-        user = self.request.user
-        if user.user_type == 'student':
-            from apps.courses.models import Enrollment
-            if not Enrollment.objects.filter(
-                student=user, 
-                course=room.course, 
-                status='active'
-            ).exists():
-                return ChatMessage.objects.none()
-        elif user != room.host:
-            return ChatMessage.objects.none()
-        
-        return ChatMessage.objects.filter(room=room)
+        room_id = self.kwargs['room_id']  # Using room_id as room for now
+        return ChatMessage.objects.filter(room=room_id)
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -40,18 +26,10 @@ class ChatMessageListCreateView(generics.ListCreateAPIView):
         return context
 
     def perform_create(self, serializer):
-        room_id = self.kwargs['room_id']
-        room = get_object_or_404(VideoRoom, id=room_id)
-        
-        # Check if user is a participant in the room
-        if not RoomParticipant.objects.filter(
-            room=room, 
+        serializer.save(
             user=self.request.user, 
-            left_at__isnull=True
-        ).exists():
-            raise permissions.PermissionDenied("You must be in the room to send messages")
-        
-        serializer.save()
+            room=self.kwargs['room_id']  # Using room_id as room for now
+        )
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
@@ -65,31 +43,10 @@ def add_reaction(request, message_id):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Check if user can access the room
-    room = message.room
-    user = request.user
-    
-    if user.user_type == 'student':
-        from apps.courses.models import Enrollment
-        if not Enrollment.objects.filter(
-            student=user, 
-            course=room.course, 
-            status='active'
-        ).exists():
-            return Response(
-                {'error': 'Access denied'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-    elif user != room.host:
-        return Response(
-            {'error': 'Access denied'}, 
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
     # Add or update reaction
     reaction, created = ChatReaction.objects.update_or_create(
         message=message,
-        user=user,
+        user=request.user,
         defaults={'reaction': reaction_emoji}
     )
     
@@ -132,14 +89,66 @@ def edit_message(request, message_id):
 @api_view(['DELETE'])
 @permission_classes([permissions.IsAuthenticated])
 def delete_message(request, message_id):
-    message = get_object_or_404(ChatMessage, id=message_id)
-    
-    # Only message author or room host can delete messages
-    if message.user != request.user and message.room.host != request.user:
-        return Response(
-            {'error': 'Permission denied'}, 
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
+    message = get_object_or_404(ChatMessage, id=message_id, user=request.user)
     message.delete()
     return Response({'message': 'Message deleted'})
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def mark_as_read(request, message_id=None, room_id=None):
+    """Mark a message or all messages in a room as read"""
+    if message_id:
+        # Mark specific message as read
+        message = get_object_or_404(ChatMessage, id=message_id)
+        # Here you would typically update a read status model
+        # For now, just return success
+        return Response({'message': 'Message marked as read'})
+    elif room_id:
+        # Mark all messages in room as read
+        # Here you would typically update read status for all messages in room
+        return Response({'message': 'All messages in room marked as read'})
+    else:
+        return Response(
+            {'error': 'Either message_id or room_id is required'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+class MessageThreadView(generics.ListAPIView):
+    """View for getting threaded replies to a message"""
+    serializer_class = ChatMessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        message_id = self.kwargs['message_id']
+        # Get threaded replies to a message
+        return ChatMessage.objects.filter(parent_message_id=message_id)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_message_reactions(request, message_id):
+    """Get all reactions for a specific message"""
+    message = get_object_or_404(ChatMessage, id=message_id)
+    reactions = ChatReaction.objects.filter(message=message)
+    return Response(ChatReactionSerializer(reactions, many=True).data)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_reaction_analytics(request, room_id):
+    """Get reaction analytics for a room"""
+    reactions = ChatReaction.objects.filter(message__room=room_id)
+    
+    # Count reactions by emoji
+    reaction_counts = reactions.values('reaction').annotate(
+        count=Count('reaction')
+    ).order_by('-count')
+    
+    # Count reactions by user
+    user_counts = reactions.values('user__username').annotate(
+        count=Count('user')
+    ).order_by('-count')
+    
+    return Response({
+        'reaction_counts': list(reaction_counts),
+        'user_counts': list(user_counts),
+        'total_reactions': reactions.count()
+    })

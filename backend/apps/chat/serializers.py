@@ -19,7 +19,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'user_name', 'message_type', 'content',
             'file_url', 'file_name', 'file_size', 'timestamp',
-            'is_edited', 'edited_at', 'reactions'
+            'is_edited', 'edited_at', 'reactions', 'room'
         ]
 
 class ChatMessageCreateSerializer(serializers.ModelSerializer):
@@ -29,5 +29,5 @@ class ChatMessageCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['user'] = self.context['request'].user
-        validated_data['room_id'] = self.context['room_id']
+        validated_data['room'] = self.context['room_id']
         return super().create(validated_data)

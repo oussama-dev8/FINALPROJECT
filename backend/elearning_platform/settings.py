@@ -28,6 +28,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'channels',
     'django_filters',
@@ -36,9 +37,9 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     'apps.authentication',
     'apps.courses',
-    'apps.video_rooms',
     'apps.chat',
     'apps.analytics',
+    'apps.video_rooms',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -169,11 +170,6 @@ CHANNEL_LAYERS = {
     },
 }
 
-# Agora Configuration
-AGORA_APP_ID = config('AGORA_APP_ID', default='')
-AGORA_APP_CERTIFICATE = config('AGORA_APP_CERTIFICATE', default='')
-AGORA_CHANNEL_PREFIX = 'darsy_'
-
 # Email Configuration (for development)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
@@ -214,3 +210,12 @@ FRONTEND_URL = 'http://localhost:3000'  # Change this in production
 
 # Email settings
 DEFAULT_FROM_EMAIL = 'noreply@elearning.com'
+
+# Agora Configuration
+# Note: These are test credentials. For production, get your own from https://console.agora.io/
+AGORA_APP_ID = config('AGORA_APP_ID', default='c0d5169e3b6a4ee3be78171e717d577f')
+AGORA_APP_CERTIFICATE = config('AGORA_APP_CERTIFICATE', default='1b0159a397124a2fb2635b7e975f2a26')
+
+# Alternative test credentials (uncomment to try different ones)
+# AGORA_APP_ID = config('AGORA_APP_ID', default='your_app_id_here')
+# AGORA_APP_CERTIFICATE = config('AGORA_APP_CERTIFICATE', default='your_app_certificate_here')

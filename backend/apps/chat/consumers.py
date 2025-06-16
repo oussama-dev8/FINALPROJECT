@@ -2,7 +2,7 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
-from .models import ChatMessage, VideoRoom
+from .models import ChatMessage
 from .serializers import ChatMessageSerializer
 
 User = get_user_model()
@@ -14,12 +14,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.user = self.scope['user']
 
         if self.user.is_anonymous:
-            await self.close()
-            return
-
-        # Check if user can access the room
-        can_access = await self.check_room_access()
-        if not can_access:
             await self.close()
             return
 
@@ -140,29 +134,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }))
 
     @database_sync_to_async
-    def check_room_access(self):
-        try:
-            room = VideoRoom.objects.get(id=self.room_id)
-            
-            if self.user.user_type == 'teacher':
-                return room.host == self.user
-            else:
-                # Check if student is enrolled in the course
-                from apps.courses.models import Enrollment
-                return Enrollment.objects.filter(
-                    student=self.user,
-                    course=room.course,
-                    status='active'
-                ).exists()
-        except VideoRoom.DoesNotExist:
-            return False
-
-    @database_sync_to_async
     def save_message(self, content):
         try:
-            room = VideoRoom.objects.get(id=self.room_id)
             message = ChatMessage.objects.create(
-                room=room,
+                room_name=self.room_id,
                 user=self.user,
                 content=content,
                 message_type='text'

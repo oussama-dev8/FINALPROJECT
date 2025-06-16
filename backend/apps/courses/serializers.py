@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Course, Lesson, Enrollment, LessonProgress, CourseReview
+from .models import Category, Course, Lesson, Enrollment, LessonProgress, CourseReview, LessonMaterial
 from apps.authentication.serializers import UserProfileSerializer
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -12,13 +12,20 @@ class CategorySerializer(serializers.ModelSerializer):
     def get_course_count(self, obj):
         return obj.courses.filter(status='published').count()
 
+class LessonMaterialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LessonMaterial
+        fields = ['id', 'title', 'file', 'file_type', 'file_size', 'created_at']
+
 class LessonSerializer(serializers.ModelSerializer):
+    materials = LessonMaterialSerializer(many=True, read_only=True)
+    
     class Meta:
         model = Lesson
         fields = [
             'id', 'title', 'description', 'lesson_type', 'order',
             'duration_minutes', 'content', 'video_url', 'scheduled_at',
-            'is_published', 'created_at'
+            'is_published', 'created_at', 'materials'
         ]
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -71,8 +78,7 @@ class CourseCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['teacher'] = self.context['request'].user
-        if 'status' not in validated_data:
-            validated_data['status'] = 'published'  # Set default status
+        # The model's default status ('draft') will be used if not provided
         return super().create(validated_data)
 
 class EnrollmentSerializer(serializers.ModelSerializer):

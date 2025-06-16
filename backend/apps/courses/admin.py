@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Course, Lesson, Enrollment, LessonProgress, CourseReview
+from .models import Category, Course, Lesson, Enrollment, LessonProgress, CourseReview, LessonMaterial
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -29,6 +29,12 @@ class EnrollmentAdmin(admin.ModelAdmin):
 class LessonProgressAdmin(admin.ModelAdmin):
     list_display = ['enrollment', 'lesson', 'completed', 'completed_at']
     list_filter = ['completed', 'completed_at']
+
+@admin.register(LessonMaterial)
+class LessonMaterialAdmin(admin.ModelAdmin):
+    list_display = ['title', 'lesson', 'file_type', 'file_size', 'created_at']
+    list_filter = ['file_type', 'created_at']
+    search_fields = ['title', 'lesson__title']
 
 @admin.register(CourseReview)
 class CourseReviewAdmin(admin.ModelAdmin):

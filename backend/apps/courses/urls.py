@@ -15,6 +15,7 @@ urlpatterns = [
     # Lessons
     path('lessons/<int:pk>/', views.LessonDetailView.as_view(), name='lesson-detail'),
     path('lessons/<int:pk>/complete/', views.mark_lesson_complete, name='mark-lesson-complete'),
+    path('lessons/<int:lesson_id>/materials/', views.LessonMaterialListCreateView.as_view(), name='lesson-materials'),
     
     # Teacher specific
     path('my-courses/', views.TeacherCoursesView.as_view(), name='teacher-courses'),

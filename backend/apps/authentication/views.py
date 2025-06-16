@@ -6,6 +6,7 @@ from django.contrib.auth import authenticate
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.conf import settings
+import logging
 from .models import User
 from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer, 
@@ -14,15 +15,24 @@ from .serializers import (
 from django.contrib.auth.tokens import default_token_generator
 from .utils import send_password_reset_email
 
+# Set up logger
+logger = logging.getLogger(__name__)
+
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserRegistrationSerializer
     permission_classes = [permissions.AllowAny]
 
     def create(self, request, *args, **kwargs):
+        logger.info(f"Registration attempt with data: {request.data}")
+        
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            logger.error(f"Registration validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
         user = serializer.save()
+        logger.info(f"User registered successfully: {user.email} ({user.user_type})")
         
         # Generate tokens
         refresh = RefreshToken.for_user(user)
@@ -121,3 +131,30 @@ def password_reset_view(request):
     return Response({
         'message': 'If an account exists with this email, you will receive password reset instructions.'
     }, status=status.HTTP_200_OK)
+@api_view(['DELETE'])
+@permission_classes([permissions.IsAuthenticated])
+def delete_account_view(request):
+    """
+    Delete the authenticated user's account after password verification
+    """
+    password = request.data.get('password')
+    if not password:
+        return Response({'error': 'Password is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    user = request.user
+    # Verify password
+    if not user.check_password(password):
+        return Response({'error': 'Invalid password'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Delete the user account
+        user_email = user.email  # Store for logging
+        user.delete()
+        logger.info(f"User account deleted: {user_email}")
+        return Response({'message': 'Account successfully deleted'}, status=status.HTTP_200_OK)
+    except Exception as e:
+        logger.error(f"Error deleting user account: {str(e)}")
+        return Response(
+            {'error': 'Failed to delete account. Please try again later.'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

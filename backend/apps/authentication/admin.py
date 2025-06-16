@@ -4,8 +4,8 @@ from .models import User
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ['email', 'username', 'first_name', 'last_name', 'user_type', 'is_verified', 'created_at']
-    list_filter = ['user_type', 'is_verified', 'is_active', 'created_at']
+    list_display = ['email', 'username', 'first_name', 'last_name', 'user_type', 'is_verified', 'is_staff', 'is_superuser', 'created_at']
+    list_filter = ['user_type', 'is_verified', 'is_active', 'is_staff', 'is_superuser', 'created_at']
     search_fields = ['email', 'username', 'first_name', 'last_name']
     ordering = ['-created_at']
     
@@ -28,3 +28,7 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('email', 'user_type', 'first_name', 'last_name')
         }),
     )
+    
+    def get_queryset(self, request):
+        # Ensure all users are visible, not just staff users
+        return super().get_queryset(request)

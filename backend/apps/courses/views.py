@@ -5,11 +5,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.utils import timezone
-from .models import Category, Course, Lesson, Enrollment, LessonProgress, CourseReview
+from .models import Category, Course, Lesson, Enrollment, LessonProgress, CourseReview, LessonMaterial
 from .serializers import (
     CategorySerializer, CourseSerializer, CourseCreateSerializer,
     CourseDetailSerializer, LessonSerializer, EnrollmentSerializer,
-    LessonProgressSerializer, CourseReviewSerializer
+    LessonProgressSerializer, CourseReviewSerializer, LessonMaterialSerializer
 )
 
 class CategoryListView(generics.ListCreateAPIView):
@@ -153,7 +153,20 @@ class LessonListCreateView(generics.ListCreateAPIView):
         if course.teacher != self.request.user:
             raise permissions.PermissionDenied("You can only add lessons to your own courses")
         
-        serializer.save(course=course)
+        lesson = serializer.save(course=course)
+        
+        # Handle material uploads
+        materials_count = int(self.request.data.get('materials_count', 0))
+        for i in range(materials_count):
+            material_file = self.request.FILES.get(f'material_{i}')
+            material_title = self.request.data.get(f'material_{i}_title', '')
+            
+            if material_file:
+                LessonMaterial.objects.create(
+                    lesson=lesson,
+                    title=material_title or material_file.name,
+                    file=material_file
+                )
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
@@ -179,6 +192,9 @@ def mark_lesson_complete(request, pk):
         lesson_progress.completed = True
         lesson_progress.completed_at = timezone.now()
         lesson_progress.save()
+        
+        # Update enrollment progress
+        enrollment.update_progress()
     
     return Response({'message': 'Lesson marked as complete'}, status=status.HTTP_200_OK)
 
@@ -200,9 +216,10 @@ class CourseReviewListCreateView(generics.ListCreateAPIView):
             course=course, 
             status__in=['active', 'completed']
         ).exists():
-            raise permissions.PermissionDenied("You must be enrolled to review this course")
+            raise permissions.PermissionDenied("You must be enrolled (active or completed) to review this course")
         
-        serializer.save(student=self.request.user, course=course)
+        review = serializer.save(student=self.request.user, course=course)
+        # Update course rating
         course.update_rating()
 
 @api_view(['GET'])
@@ -220,21 +237,25 @@ def get_course_progress(request, course_id):
     )
     
     # Get completed lessons
-    completed_lessons = LessonProgress.objects.filter(
+    completed_lesson_progress = LessonProgress.objects.filter(
         enrollment=enrollment,
         completed=True
-    ).count()
+    )
+    completed_lessons_count = completed_lesson_progress.count()
+    completed_lesson_ids = list(completed_lesson_progress.values_list('lesson_id', flat=True))
     
     # Get total lessons
     total_lessons = course.lessons.filter(is_published=True).count()
     
     # Calculate progress percentage
-    progress_percentage = (completed_lessons / total_lessons * 100) if total_lessons > 0 else 0
+    progress_percentage = (completed_lessons_count / total_lessons * 100) if total_lessons > 0 else 0
     
     return Response({
         'total_lessons': total_lessons,
-        'completed_lessons': completed_lessons,
-        'progress_percentage': round(progress_percentage, 2)
+        'completed_lessons': completed_lessons_count,
+        'completed_lesson_ids': completed_lesson_ids,
+        'progress_percentage': round(progress_percentage, 2),
+        'progress': round(progress_percentage, 2)  # Alias for frontend compatibility
     })
 
 class LessonDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -276,3 +297,34 @@ class LessonDetailView(generics.RetrieveUpdateDestroyAPIView):
         if instance.course.teacher != self.request.user:
             raise permissions.PermissionDenied("You can only delete your own lessons")
         instance.delete()
+
+class LessonMaterialListCreateView(generics.ListCreateAPIView):
+    serializer_class = LessonMaterialSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        lesson_id = self.kwargs['lesson_id']
+        lesson = get_object_or_404(Lesson, id=lesson_id)
+        
+        # Teachers can see all materials, students only if enrolled
+        if self.request.user == lesson.course.teacher:
+            return lesson.materials.all()
+        else:
+            # Check if student is enrolled
+            if not Enrollment.objects.filter(
+                student=self.request.user, 
+                course=lesson.course, 
+                status='active'
+            ).exists():
+                return LessonMaterial.objects.none()
+            return lesson.materials.all()
+
+    def perform_create(self, serializer):
+        lesson_id = self.kwargs['lesson_id']
+        lesson = get_object_or_404(Lesson, id=lesson_id)
+        
+        # Only course teacher can add materials
+        if lesson.course.teacher != self.request.user:
+            raise permissions.PermissionDenied("You can only add materials to your own lessons")
+        
+        serializer.save(lesson=lesson)

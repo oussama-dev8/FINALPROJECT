@@ -31,7 +31,8 @@ class VideoRoomSerializer(serializers.ModelSerializer):
 class VideoRoomCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = VideoRoom
-        fields = ['course', 'lesson', 'title', 'description', 'max_participants']
+        fields = ['id', 'course', 'lesson', 'room_id', 'title', 'description', 'max_participants']
+        read_only_fields = ['id', 'room_id']
 
     def create(self, validated_data):
         import uuid

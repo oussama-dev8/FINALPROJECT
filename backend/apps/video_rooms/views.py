@@ -236,3 +236,74 @@ def update_participant_status(request, room_id):
     participant.save()
     
     return Response(RoomParticipantSerializer(participant).data)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_room_participants(request, room_id):
+    room = get_object_or_404(VideoRoom, id=room_id)
+    user = request.user
+    
+    # Check if user can access the room
+    if user.user_type == 'student':
+        from apps.courses.models import Enrollment
+        if not Enrollment.objects.filter(
+            student=user, 
+            course=room.course, 
+            status='active'
+        ).exists():
+            return Response(
+                {'error': 'Access denied'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+    elif user != room.host:
+        return Response(
+            {'error': 'Access denied'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Get active participants
+    participants = RoomParticipant.objects.filter(
+        room=room, 
+        left_at__isnull=True
+    ).select_related('user')
+    
+    return Response(RoomParticipantSerializer(participants, many=True).data)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def debug_agora_config(request):
+    """Debug endpoint to test Agora configuration"""
+    try:
+        from apps.video_rooms.utils import generate_agora_token
+        
+        # Test token generation
+        test_channel = f"test_channel_{request.user.id}"
+        test_uid = request.user.id
+        
+        token_data = generate_agora_token(
+            app_id=settings.AGORA_APP_ID,
+            app_certificate=settings.AGORA_APP_CERTIFICATE,
+            channel_name=test_channel,
+            uid=test_uid,
+            token_type='rtc'
+        )
+        
+        return Response({
+            'status': 'success',
+            'message': 'Agora configuration is working',
+            'app_id': settings.AGORA_APP_ID,
+            'test_channel': test_channel,
+            'test_uid': test_uid,
+            'token_generated': True,
+            'token_length': len(token_data['token']),
+            'token_preview': token_data['token'][:20] + '...',
+            'expires_at': token_data['expires_at']
+        })
+        
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': f'Agora configuration error: {str(e)}',
+            'app_id': settings.AGORA_APP_ID,
+            'error_type': type(e).__name__
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

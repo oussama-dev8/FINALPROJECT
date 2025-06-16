@@ -1,7 +1,6 @@
 from django.db import models
 from django.conf import settings
 from apps.courses.models import Course, Lesson
-from apps.video_rooms.models import VideoRoom
 
 class CourseAnalytics(models.Model):
     course = models.OneToOneField(Course, on_delete=models.CASCADE, related_name='analytics')
@@ -33,7 +32,7 @@ class StudentActivity(models.Model):
         ordering = ['-timestamp']
 
 class SessionAnalytics(models.Model):
-    room = models.ForeignKey(VideoRoom, on_delete=models.CASCADE, related_name='session_analytics')
+    room_name = models.CharField(max_length=255)  # Simple room name instead of ForeignKey
     total_participants = models.PositiveIntegerField(default=0)
     peak_participants = models.PositiveIntegerField(default=0)
     average_duration_minutes = models.PositiveIntegerField(default=0)
@@ -42,4 +41,4 @@ class SessionAnalytics(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Session Analytics for {self.room.title}"
+        return f"Session Analytics for {self.room_name}"

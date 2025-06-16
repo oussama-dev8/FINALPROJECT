@@ -7,9 +7,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('apps.authentication.urls')),
     path('api/courses/', include('apps.courses.urls')),
-    path('api/video-rooms/', include('apps.video_rooms.urls')),
     path('api/chat/', include('apps.chat.urls')),
     path('api/analytics/', include('apps.analytics.urls')),
+    path('api/video-rooms/', include('apps.video_rooms.urls')),
 ]
 
 if settings.DEBUG:

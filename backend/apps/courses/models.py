@@ -142,6 +142,26 @@ class LessonProgress(models.Model):
     class Meta:
         unique_together = ['enrollment', 'lesson']
 
+class LessonMaterial(models.Model):
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='materials')
+    title = models.CharField(max_length=200)
+    file = models.FileField(upload_to='lesson_materials/')
+    file_type = models.CharField(max_length=50, blank=True)
+    file_size = models.PositiveIntegerField(default=0)  # in bytes
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.lesson.title} - {self.title}"
+
+    def save(self, *args, **kwargs):
+        if self.file:
+            self.file_size = self.file.size
+            self.file_type = self.file.name.split('.')[-1].lower() if '.' in self.file.name else ''
+        super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ['created_at']
+
 class CourseReview(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='reviews')
     student = models.ForeignKey(

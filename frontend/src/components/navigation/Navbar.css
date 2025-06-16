@@ -1,0 +1,14 @@
+/* Apply Inter font to navigation elements */
+.font-sans {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Navigation links */
+.nav-link {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Buttons */
+.nav-button {
+  font-family: 'Inter', sans-serif;
+}
