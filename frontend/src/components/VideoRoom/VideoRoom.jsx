@@ -66,42 +66,10 @@ const VideoRoom = () => {
   } = useAgoraRTC();
 
   useEffect(() => {
-    console.log('🔍 VideoRoom useEffect triggered:', {
-      roomId,
-      initializingRef: initializingRef.current,
-      isJoined,
-      loading,
-      shouldInitialize: !initializingRef.current && !isJoined && !loading
-    });
-    
-    // Only initialize if we haven't already initialized for this room
     if (!initializingRef.current && !isJoined && !loading) {
-      console.log('✅ Starting room initialization...');
       initializeRoom();
-    } else {
-      console.log('❌ Skipping initialization due to conditions');
     }
-  }, [roomId]); // Only depend on roomId
-
-  // Separate cleanup effect that only runs on unmount - TEMPORARILY DISABLED FOR TESTING
-  // useEffect(() => {
-  //   return () => {
-  //     console.log('🧹 VideoRoom component unmounting - cleaning up...');
-  //     cleanupAll();
-  //   };
-  // }, []); // Empty dependency array - only runs on mount/unmount
-
-  // Debug: Log when remote users change
-  useEffect(() => {
-    console.log('Remote users changed:', {
-      count: remoteUsers.length,
-      users: remoteUsers.map(u => ({
-        uid: u.uid,
-        hasVideoTrack: !!u.videoTrack,
-        hasAudioTrack: !!u.audioTrack
-      }))
-    });
-  }, [remoteUsers]);
+  }, [roomId]);
 
   const cleanupAll = () => {
     console.log('🧹 Cleaning up VideoRoom component...');
@@ -489,12 +457,19 @@ const VideoRoom = () => {
                     key={user.uid}
                     className="w-full h-full"
                     style={{
-                      display: index === 0 ? 'block' : 'none' // Show only the first remote user in main area
+                      display: index === 0 ? 'block' : 'none'
                     }}
                   >
                     <div
                       ref={(el) => {
-                        if (el) remoteVideoRefs.current[user.uid] = el;
+                        if (el) {
+                          remoteVideoRefs.current[user.uid] = el;
+                          // Play the remote video track as soon as element and track are available
+                          if (user.videoTrack) {
+                            console.log('Playing remote video in UI for user:', user.uid);
+                            user.videoTrack.play(el);
+                          }
+                        }
                       }}
                       className="w-full h-full object-cover bg-gray-800"
                     />
@@ -579,7 +554,17 @@ const VideoRoom = () => {
             <div className="w-48 h-36 bg-gray-800 rounded-lg overflow-hidden border-2 border-gray-600 shadow-lg">
               {localTracks.videoTrack && isVideoOn ? (
                 <div
-                  ref={localVideoRef}
+                  ref={(el) => {
+                    if (el) {
+                      // Store the element in the ref
+                      localVideoRef.current = el;
+                      // Play local video track immediately
+                      if (localTracks.videoTrack) {
+                        console.log('Playing local video in UI for self');
+                        localTracks.videoTrack.play(el);
+                      }
+                    }
+                  }}
                   className="w-full h-full object-cover bg-gray-800"
                 />
               ) : (

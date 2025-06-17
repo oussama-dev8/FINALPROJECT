@@ -183,6 +183,29 @@ const useAgoraRTC = () => {
       await client.join(appId, channelName, token, uid);
       console.log('Joined channel successfully');
       
+      // Subscribe to already published remote users
+      client.remoteUsers.forEach(async (remoteUser) => {
+        try {
+          if (remoteUser.videoTrack) {
+            await client.subscribe(remoteUser, 'video');
+          }
+          if (remoteUser.audioTrack) {
+            await client.subscribe(remoteUser, 'audio');
+          }
+          setRemoteUsers(prevUsers => {
+            const idx = prevUsers.findIndex(u => u.uid === remoteUser.uid);
+            if (idx >= 0) {
+              const updated = [...prevUsers];
+              updated[idx] = remoteUser;
+              return updated;
+            }
+            return [...prevUsers, remoteUser];
+          });
+        } catch (err) {
+          console.error('Failed to subscribe to existing user stream:', remoteUser.uid, err);
+        }
+      });
+      
       // Check available devices
       const devices = await AgoraRTC.getDevices();
       const hasCamera = devices.some(device => device.kind === 'videoinput');
